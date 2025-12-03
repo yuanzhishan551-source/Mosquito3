@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stress Buster - Readable Text</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: white;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+            user-select: none;
+        }
+
+        #input_video { display: none; }
+
+        /* Mirror the canvas so the user feels like looking into a mirror */
+        #output_canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); 
+        }
+
+        #start-screen {
+            position: absolute;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: opacity 0.3s;
+            max-width: 400px;
+        }
+        
+        #start-screen:active { transform: scale(0.98); }
+        h1 { margin-top: 0; color: #333; }
+        p { color: #666; line-height: 1.6; }
+        .tips { font-size: 0.9em; color: #888; margin-top: 10px; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;}
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" onclick="startGame()">
+        <h1>😤 Stress Buster</h1>
+        <p><b>Click Here to Start</b><br><small>(Please allow camera access)</small></p>
+        <p>
+            🖐️ <b>Slap:</b> Push your palm towards the screen.<br>
+            🙏 <b>Clap:</b> Crush the words between your hands.
+        </p>
+        <div class="tips">Target: Exams, Bills, Deadlines...</div>
+    </div>
+
+    <video id="input_video"></video>
+    <canvas id="output_canvas"></canvas>
+
+    <script>
+        // --- Assets ---
+        const IMG_SIDE_HAND = new Image();
+        IMG_SIDE_HAND.src = "https://files.catbox.moe/hlzzt5.png"; 
+        
+        const IMG_OPEN_HAND = new Image();
+        IMG_OPEN_HAND.src = "https://files.catbox.moe/ywe43q.png"; 
+        
+        const IMG_CLAP_SUCCESS = new Image();
+        IMG_CLAP_SUCCESS.src = "https://files.catbox.moe/mvf62w.png"; 
+        
+        const AUDIO_SLAP = new Audio("https://files.catbox.moe/vbp11i.m4a");
+
+        // --- Stress Words ---
+        const STRESS_WORDS = [
+            "Exams", "Homework", "Deadline", "Debt", 
+            "Monday", "Bills", "Traffic", "Bugs", 
+            "Meeting", "Error 404", "Chores", "Alarm",
+            "Drama", "Email", "Rent", "Lag"
+        ];
+
+        // --- Game State ---
+        const canvas = document.getElementById('output_canvas');
+        const ctx = canvas.getContext('2d');
+        const videoElement = document.getElementById('input_video');
+        
+        let target = { 
+            x: 0.5, 
+            y: 0.5, 
+            vx: 0.005, 
+            vy: 0.005, 
+            alive: true, 
+            respawnTimer: 0,
+            text: "Stress"
+        };
+        
+        let clapEffect = { active: false, x: 0, y: 0, timer: 0 };
+        let persistedHands = {};
+        
+        let handStates = {
+            0: { lastSize: 0, slapAnimTimer: 0, velocity: 0 },
+            1: { lastSize: 0, slapAnimTimer: 0, velocity: 0 }
+        };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function startGame() {
+            document.getElementById('start-screen').style.opacity = '0';
+            setTimeout(() => document.getElementById('start-screen').style.display = 'none', 300);
+            
+            target.text = STRESS_WORDS[Math.floor(Math.random() * STRESS_WORDS.length)];
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({image: videoElement});
+                },
+                width: 1280,
+                height: 720
+            });
+            camera.start();
+        }
+
+        // --- Logic ---
+        function updateTarget() {
+            if (!target.alive) {
+                target.respawnTimer++;
+                if (target.respawnTimer > 60) { 
+                    target.alive = true;
+                    target.x = Math.random() * 0.8 + 0.1;
+                    target.y = Math.random() * 0.8 + 0.1;
+                    target.respawnTimer = 0;
+                    target.text = STRESS_WORDS[Math.floor(Math.random() * STRESS_WORDS.length)];
+                }
+                return;
+            }
+            target.x += target.vx;
+            target.y += target.vy;
+            
+            if (Math.random() < 0.05) target.vx = (Math.random() - 0.5) * 0.015;
+            if (Math.random() < 0.05) target.vy = (Math.random() - 0.5) * 0.015;
+            
+            if (target.x < 0.05) target.vx = Math.abs(target.vx);
+            if (target.x > 0.95) target.vx = -Math.abs(target.vx);
+            if (target.y < 0.05) target.vy = Math.abs(target.vy);
+            if (target.y > 0.95) target.vy = -Math.abs(target.vy);
+        }
+
+        function playSlapSound() {
+            let sound = AUDIO_SLAP.cloneNode();
+            sound.volume = 1.0;
+            sound.play();
+        }
+
+        function killTarget() {
+            if (!target.alive) return;
+            target.alive = false;
+            playSlapSound();
+        }
+
+        // --- MediaPipe Setup ---
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        function onResults(results) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 1. Draw Stress Word (Target)
+            updateTarget();
+            if (target.alive) {
+                const mx = target.x * canvas.width;
+                const my = target.y * canvas.height;
+
+                ctx.save();
+                ctx.translate(mx, my);
+                
+                // === FIX: Flip context horizontally ===
+                // Because the canvas is mirrored via CSS scaleX(-1), 
+                // we must draw the text "backwards" so it appears correct to the user.
+                ctx.scale(-1, 1);
+
+                const angle = Math.atan2(target.vy, target.vx) * 0.2; 
+                ctx.rotate(angle); 
+
+                ctx.font = "bold 50px Arial";
+                
+                // Color set to Black
+                ctx.fillStyle = "black"; 
+                
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                
+                // White outline
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 5;
+                ctx.strokeText(target.text, 0, 0);
+                
+                ctx.fillText(target.text, 0, 0);
+                
+                ctx.restore();
+            }
+
+            // 2. Clap Effect
+            if (clapEffect.active) {
+                clapEffect.timer--;
+                const size = 300; 
+                ctx.drawImage(IMG_CLAP_SUCCESS, clapEffect.x - size/2, clapEffect.y - size/2, size, size);
+                if (clapEffect.timer <= 0) clapEffect.active = false;
+                return; 
+            }
+
+            // 3. Process Hand Data
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                results.multiHandLandmarks.forEach((landmarks, index) => {
+                    const label = results.multiHandedness[index].label;
+                    const wrist = landmarks[0];
+                    const thumbTip = landmarks[4];
+                    const middleTip = landmarks[12];
+                    const pinkyMcp = landmarks[17];
+                    const cx = landmarks[9].x; 
+                    const cy = landmarks[9].y;
+
+                    const handLength = Math.hypot(middleTip.x - wrist.x, middleTip.y - wrist.y);
+                    const handWidth = Math.hypot(thumbTip.x - pinkyMcp.x, thumbTip.y - pinkyMcp.y);
+                    let ratio = 0.5;
+                    if (handLength > 0) ratio = handWidth / handLength;
+                    const isSide = ratio < 0.38;
+
+                    let angle = Math.atan2(middleTip.y - wrist.y, middleTip.x - wrist.x);
+                    angle += Math.PI / 2;
+
+                    persistedHands[index] = {
+                        x: cx, y: cy,
+                        angle: angle,
+                        label: label,
+                        isSide: isSide,
+                        size: handLength, 
+                        landmarks: landmarks
+                    };
+                });
+            }
+
+            // 4. Render Hands
+            const handKeys = Object.keys(persistedHands);
+            let currentHandsList = []; 
+
+            handKeys.forEach(key => {
+                const hand = persistedHands[key];
+                const state = handStates[key];
+
+                const screenX = hand.x * canvas.width;
+                const screenY = hand.y * canvas.height;
+                
+                let isSlapping = false;
+                let renderScale = 1.0; 
+                let shadowAlpha = 0.5; 
+                let shadowOffset = 20; 
+
+                // --- Slap Logic ---
+                if (!hand.isSide) {
+                    const sizeDiff = hand.size - state.lastSize;
+                    state.velocity = state.velocity * 0.6 + sizeDiff * 0.4;
+                    
+                    if (state.velocity > 0.008 && hand.size > 0.15 && state.slapAnimTimer === 0) {
+                        state.slapAnimTimer = 10; 
+                        playSlapSound(); 
+                        const dist = Math.hypot(hand.x - target.x, hand.y - target.y);
+                        if (dist < 0.2) killTarget();
+                    }
+
+                    state.lastSize = hand.size;
+
+                    if (state.slapAnimTimer > 0) {
+                        isSlapping = true;
+                        state.slapAnimTimer--;
+                        renderScale = 0.85; 
+                        shadowAlpha = 0;
+                        shadowOffset = 0;
+                    } 
+                } else {
+                    state.slapAnimTimer = 0;
+                    state.lastSize = hand.size;
+                }
+
+                currentHandsList.push(hand);
+
+                // --- Drawing Hands ---
+                ctx.save();
+                ctx.translate(screenX, screenY);
+                ctx.rotate(hand.angle);
+
+                if (hand.label === 'Left') ctx.scale(-1, 1); 
+
+                const img = hand.isSide ? IMG_SIDE_HAND : IMG_OPEN_HAND;
+                
+                let baseHeight = 480 - (hand.size * 800);
+                if (baseHeight < 120) baseHeight = 120;
+                if (baseHeight > 450) baseHeight = 450;
+                baseHeight *= renderScale;
+
+                if (!hand.isSide) {
+                    shadowOffset = (0.5 - hand.size) * 80;
+                    if (shadowOffset < 0) shadowOffset = 0;
+
+                    ctx.shadowColor = `rgba(0, 0, 0, ${shadowAlpha})`;
+                    ctx.shadowBlur = isSlapping ? 0 : 30;
+                    ctx.shadowOffsetX = shadowOffset; 
+                    ctx.shadowOffsetY = shadowOffset; 
+                }
+
+                const ratio = img.naturalWidth / img.naturalHeight || 0.8;
+                const drawWidth = baseHeight * ratio;
+                const drawHeight = baseHeight;
+
+                ctx.drawImage(img, -drawWidth/2, -drawHeight/2, drawWidth, drawHeight);
+                ctx.restore();
+            });
+
+            // 5. Clap Detection
+            if (currentHandsList.length === 2) {
+                const h1 = currentHandsList[0];
+                const h2 = currentHandsList[1];
+                if (h1.isSide || h2.isSide) {
+                    const dist = Math.hypot(h1.x - h2.x, h1.y - h2.y);
+                    if (dist < 0.15) {
+                        clapEffect.active = true;
+                        clapEffect.timer = 15;
+                        clapEffect.x = (h1.x + h2.x) / 2 * canvas.width;
+                        clapEffect.y = (h1.y + h2.y) / 2 * canvas.height;
+                        
+                        playSlapSound();
+                        const mDist = Math.hypot(clapEffect.x/canvas.width - target.x, clapEffect.y/canvas.height - target.y);
+                        if (mDist < 0.2) killTarget();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
