@@ -53,6 +53,27 @@
             max-height: 30%;
             object-fit: contain;
         }
+
+        /* --- 开屏蚊子样式 --- */
+        #start-mosquito {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            top: 45%;
+            right: 35%;
+            transform: rotate(-25deg);
+            pointer-events: none;
+            animation: mosquito-float 2s ease-in-out infinite;
+        }
+
+        @keyframes mosquito-float {
+            0%, 100% {
+                transform: rotate(-25deg) translateY(0px);
+            }
+            50% {
+                transform: rotate(-25deg) translateY(-5px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -60,6 +81,7 @@
     <!-- 开屏界面 -->
     <div id="start-screen">
         <img id="start-btn-img" src="" alt="Start Game">
+        <img id="start-mosquito" src="https://files.catbox.moe/qyq34g.png" alt="Mosquito">
     </div>
 
     <video id="input_video"></video>
