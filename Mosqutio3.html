@@ -95,19 +95,21 @@
         const ctx = canvas.getContext('2d');
         const videoElement = document.getElementById('input_video');
         
-        let target = { 
-            x: 0.5, 
-            y: 0.5, 
-            vx: 0.005, 
-            vy: 0.005, 
-            alive: true, 
+        let target = {
+            x: 0.5,
+            y: 0.5,
+            vx: 0.005,
+            vy: 0.005,
+            alive: true,
             respawnTimer: 0,
             text: "Stress"
         };
-        
+
+        let deadTargets = []; // Store all killed targets
+
         let clapEffect = { active: false, x: 0, y: 0, timer: 0 };
         let persistedHands = {};
-        
+
         let handStates = {
             0: { lastSize: 0, slapAnimTimer: 0, velocity: 0 },
             1: { lastSize: 0, slapAnimTimer: 0, velocity: 0 }
@@ -169,6 +171,15 @@
 
         function killTarget() {
             if (!target.alive) return;
+
+            // Save the dead target with its current position and text
+            deadTargets.push({
+                x: target.x,
+                y: target.y,
+                text: target.text,
+                angle: Math.atan2(target.vy, target.vx) * 0.2
+            });
+
             target.alive = false;
             playSlapSound();
         }
@@ -186,8 +197,46 @@
 
         function onResults(results) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 1. Draw Stress Word (Target)
+
+            // 1. Draw Dead Targets (Corpses)
+            deadTargets.forEach(deadTarget => {
+                const mx = deadTarget.x * canvas.width;
+                const my = deadTarget.y * canvas.height;
+
+                ctx.save();
+                ctx.translate(mx, my);
+                ctx.scale(-1, 1);
+                ctx.rotate(deadTarget.angle);
+
+                ctx.font = "bold 50px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                // Draw dead target with gray color and strikethrough
+                ctx.fillStyle = "#888"; // Gray color for dead targets
+                ctx.globalAlpha = 0.6; // Semi-transparent
+
+                // White outline
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 5;
+                ctx.strokeText(deadTarget.text, 0, 0);
+
+                ctx.fillText(deadTarget.text, 0, 0);
+
+                // Draw strikethrough line
+                ctx.globalAlpha = 1.0;
+                ctx.strokeStyle = "red";
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                const textWidth = ctx.measureText(deadTarget.text).width;
+                ctx.moveTo(-textWidth/2, 0);
+                ctx.lineTo(textWidth/2, 0);
+                ctx.stroke();
+
+                ctx.restore();
+            });
+
+            // 2. Draw Live Stress Word (Target)
             updateTarget();
             if (target.alive) {
                 const mx = target.x * canvas.width;
@@ -195,43 +244,43 @@
 
                 ctx.save();
                 ctx.translate(mx, my);
-                
+
                 // === FIX: Flip context horizontally ===
-                // Because the canvas is mirrored via CSS scaleX(-1), 
+                // Because the canvas is mirrored via CSS scaleX(-1),
                 // we must draw the text "backwards" so it appears correct to the user.
                 ctx.scale(-1, 1);
 
-                const angle = Math.atan2(target.vy, target.vx) * 0.2; 
-                ctx.rotate(angle); 
+                const angle = Math.atan2(target.vy, target.vx) * 0.2;
+                ctx.rotate(angle);
 
                 ctx.font = "bold 50px Arial";
-                
+
                 // Color set to Black
-                ctx.fillStyle = "black"; 
-                
+                ctx.fillStyle = "black";
+
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                
+
                 // White outline
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 5;
                 ctx.strokeText(target.text, 0, 0);
-                
+
                 ctx.fillText(target.text, 0, 0);
-                
+
                 ctx.restore();
             }
 
-            // 2. Clap Effect
+            // 3. Clap Effect
             if (clapEffect.active) {
                 clapEffect.timer--;
-                const size = 300; 
+                const size = 300;
                 ctx.drawImage(IMG_CLAP_SUCCESS, clapEffect.x - size/2, clapEffect.y - size/2, size, size);
                 if (clapEffect.timer <= 0) clapEffect.active = false;
-                return; 
+                return;
             }
 
-            // 3. Process Hand Data
+            // 4. Process Hand Data
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 results.multiHandLandmarks.forEach((landmarks, index) => {
                     const label = results.multiHandedness[index].label;
@@ -262,7 +311,7 @@
                 });
             }
 
-            // 4. Render Hands
+            // 5. Render Hands
             const handKeys = Object.keys(persistedHands);
             let currentHandsList = []; 
 
@@ -338,7 +387,7 @@
                 ctx.restore();
             });
 
-            // 5. Clap Detection
+            // 6. Clap Detection
             if (currentHandsList.length === 2) {
                 const h1 = currentHandsList[0];
                 const h2 = currentHandsList[1];
