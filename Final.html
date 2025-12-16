@@ -434,9 +434,9 @@
                 if (baseHeight > 450) baseHeight = 450;
 
                 if (hand.isSide) {
-                    baseHeight *= 2.0; 
-                } 
-                else if (hand.isFist) baseHeight *= 2.5; 
+                    baseHeight *= 2.0;
+                }
+                else if (hand.isFist) baseHeight *= 1.75; // 2.5 * 0.7 = 1.75 (scaled down to 70%)
                 else baseHeight *= 2.0;
 
                 baseHeight *= renderScale;
