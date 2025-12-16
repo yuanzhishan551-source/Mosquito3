@@ -263,12 +263,15 @@
                 const deadX = deadMosquito.x * canvas.width;
                 const deadY = deadMosquito.y * canvas.height;
 
-                // Draw original blood splatter first (base layer)
-                ctx.drawImage(IMG_BLOOD, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
-
-                // Draw additional blood splatter based on kill type (second layer)
-                const bloodImg = deadMosquito.killType === 'clap' ? IMG_BLOOD_CLAP : IMG_BLOOD_SINGLE;
-                ctx.drawImage(bloodImg, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                // Draw blood splatter based on kill type
+                if (deadMosquito.killType === 'clap') {
+                    // Double hand clap: only show blood2.png
+                    ctx.drawImage(IMG_BLOOD_CLAP, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                } else {
+                    // Single hand slap: show original blood + blood 1.png
+                    ctx.drawImage(IMG_BLOOD, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                    ctx.drawImage(IMG_BLOOD_SINGLE, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                }
 
                 // Draw dead mosquito on top of blood
                 const mSize = 30;
