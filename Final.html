@@ -118,7 +118,14 @@
 
         const IMG_BLOOD = new Image();
         IMG_BLOOD.src = "https://raw.githubusercontent.com/yuanzhishan551-source/Mosquito2/main/Blood.png";
-        
+
+        // --- 新增：不同类型的血迹 ---
+        const IMG_BLOOD_SINGLE = new Image(); // 单手拍的血迹
+        IMG_BLOOD_SINGLE.src = "https://raw.githubusercontent.com/yuanzhishan551-source/Mosquito3/main/blood%201.png";
+
+        const IMG_BLOOD_CLAP = new Image(); // 双手拍的血迹
+        IMG_BLOOD_CLAP.src = "https://raw.githubusercontent.com/yuanzhishan551-source/Mosquito3/main/blood2.png";
+
         const AUDIO_MOSQUITO = new Audio("https://files.catbox.moe/tdee34.wav");
         AUDIO_MOSQUITO.loop = true;
         AUDIO_MOSQUITO.preload = 'auto';
@@ -217,14 +224,15 @@
             sound.play().catch(e => {});
         }
 
-        function killMosquito() {
+        function killMosquito(killType = 'single') {
             if (!mosquito.alive) return;
 
-            // Save the dead mosquito to the array
+            // Save the dead mosquito to the array with kill type
             deadMosquitoes.push({
                 x: mosquito.x,
                 y: mosquito.y,
-                angle: Math.atan2(mosquito.vy, mosquito.vx)
+                angle: Math.atan2(mosquito.vy, mosquito.vx),
+                killType: killType // 'single' for single hand, 'clap' for double hand
             });
 
             mosquito.alive = false;
@@ -255,8 +263,9 @@
                 const deadX = deadMosquito.x * canvas.width;
                 const deadY = deadMosquito.y * canvas.height;
 
-                // Draw blood splatter
-                ctx.drawImage(IMG_BLOOD, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                // Draw blood splatter - choose based on kill type
+                const bloodImg = deadMosquito.killType === 'clap' ? IMG_BLOOD_CLAP : IMG_BLOOD_SINGLE;
+                ctx.drawImage(bloodImg, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
 
                 // Draw dead mosquito on top of blood
                 const mSize = 30;
@@ -445,7 +454,7 @@
                         
                         playSlapSound();
                         const mDist = Math.hypot(clapEffect.x/canvas.width - mosquito.x, clapEffect.y/canvas.height - mosquito.y);
-                        if (mDist < 0.2) killMosquito();
+                        if (mDist < 0.2) killMosquito('clap');
                     }
                 }
             }
