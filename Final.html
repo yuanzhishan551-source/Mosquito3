@@ -288,8 +288,8 @@
                 const mSize = 30;
                 ctx.save();
 
-                // For clap kills, offset mosquito 30px to the left
-                const offsetX = deadMosquito.killType === 'clap' ? deadX - 30 : deadX;
+                // For clap kills, offset mosquito 30px to the left (add because canvas is mirrored)
+                const offsetX = deadMosquito.killType === 'clap' ? deadX + 30 : deadX;
                 ctx.translate(offsetX, deadY);
                 ctx.rotate(deadMosquito.angle + Math.PI / 2);
                 ctx.drawImage(IMG_MOSQUITO, -mSize/2, -mSize/2, mSize, mSize);
