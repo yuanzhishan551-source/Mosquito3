@@ -319,15 +319,7 @@
                 const clapWidth = baseSize * clapRatio;
                 const clapHeight = baseSize;
 
-                // Draw white background circle
-                ctx.save();
-                ctx.fillStyle = 'white';
-                ctx.beginPath();
-                ctx.arc(clapEffect.x, clapEffect.y, baseSize/2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-
-                // Draw clap effect image on top
+                // Draw clap effect image
                 ctx.drawImage(IMG_CLAP_SUCCESS, clapEffect.x - clapWidth/2, clapEffect.y - clapHeight/2, clapWidth, clapHeight);
                 if (clapEffect.timer <= 0) clapEffect.active = false;
                 return;
