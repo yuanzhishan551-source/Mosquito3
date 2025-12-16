@@ -227,12 +227,20 @@
         function killMosquito(killType = 'single') {
             if (!mosquito.alive) return;
 
-            // Save the dead mosquito to the array with kill type
+            // For single hand kills, randomly choose blood type
+            let bloodType = killType;
+            if (killType === 'single') {
+                // Randomly choose between 'original' or 'single'
+                bloodType = Math.random() < 0.5 ? 'original' : 'single';
+            }
+
+            // Save the dead mosquito to the array with kill type and blood type
             deadMosquitoes.push({
                 x: mosquito.x,
                 y: mosquito.y,
                 angle: Math.atan2(mosquito.vy, mosquito.vx),
-                killType: killType // 'single' for single hand, 'clap' for double hand
+                killType: killType, // 'single' for single hand, 'clap' for double hand
+                bloodType: bloodType // 'original', 'single', or 'clap'
             });
 
             mosquito.alive = false;
@@ -263,22 +271,25 @@
                 const deadX = deadMosquito.x * canvas.width;
                 const deadY = deadMosquito.y * canvas.height;
 
-                // Draw blood splatter based on kill type
+                // Draw blood splatter based on blood type
                 if (deadMosquito.killType === 'clap') {
                     // Double hand clap: only show blood2.png
                     ctx.drawImage(IMG_BLOOD_CLAP, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
                 } else {
-                    // Single hand slap: show original blood + blood 1.png
-                    ctx.drawImage(IMG_BLOOD, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
-                    ctx.drawImage(IMG_BLOOD_SINGLE, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                    // Single hand slap: show randomly chosen blood type
+                    if (deadMosquito.bloodType === 'original') {
+                        ctx.drawImage(IMG_BLOOD, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                    } else {
+                        ctx.drawImage(IMG_BLOOD_SINGLE, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+                    }
                 }
 
                 // Draw dead mosquito on top of blood
                 const mSize = 30;
                 ctx.save();
 
-                // For clap kills, offset mosquito 15px to the left
-                const offsetX = deadMosquito.killType === 'clap' ? deadX - 15 : deadX;
+                // For clap kills, offset mosquito 30px to the left
+                const offsetX = deadMosquito.killType === 'clap' ? deadX - 30 : deadX;
                 ctx.translate(offsetX, deadY);
                 ctx.rotate(deadMosquito.angle + Math.PI / 2);
                 ctx.drawImage(IMG_MOSQUITO, -mSize/2, -mSize/2, mSize, mSize);
