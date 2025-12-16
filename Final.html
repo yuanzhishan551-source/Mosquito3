@@ -263,14 +263,20 @@
                 const deadX = deadMosquito.x * canvas.width;
                 const deadY = deadMosquito.y * canvas.height;
 
-                // Draw blood splatter - choose based on kill type
+                // Draw original blood splatter first (base layer)
+                ctx.drawImage(IMG_BLOOD, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
+
+                // Draw additional blood splatter based on kill type (second layer)
                 const bloodImg = deadMosquito.killType === 'clap' ? IMG_BLOOD_CLAP : IMG_BLOOD_SINGLE;
                 ctx.drawImage(bloodImg, deadX - bloodSize/2, deadY - bloodSize/2, bloodSize, bloodSize);
 
                 // Draw dead mosquito on top of blood
                 const mSize = 30;
                 ctx.save();
-                ctx.translate(deadX, deadY);
+
+                // For clap kills, offset mosquito 15px to the left
+                const offsetX = deadMosquito.killType === 'clap' ? deadX - 15 : deadX;
+                ctx.translate(offsetX, deadY);
                 ctx.rotate(deadMosquito.angle + Math.PI / 2);
                 ctx.drawImage(IMG_MOSQUITO, -mSize/2, -mSize/2, mSize, mSize);
                 ctx.restore();
@@ -297,6 +303,16 @@
                 const clapRatio = IMG_CLAP_SUCCESS.naturalWidth / IMG_CLAP_SUCCESS.naturalHeight || 1;
                 const clapWidth = baseSize * clapRatio;
                 const clapHeight = baseSize;
+
+                // Draw white background circle
+                ctx.save();
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(clapEffect.x, clapEffect.y, baseSize/2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // Draw clap effect image on top
                 ctx.drawImage(IMG_CLAP_SUCCESS, clapEffect.x - clapWidth/2, clapEffect.y - clapHeight/2, clapWidth, clapHeight);
                 if (clapEffect.timer <= 0) clapEffect.active = false;
                 return;
